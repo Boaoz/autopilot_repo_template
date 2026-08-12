@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Download a GitHub issue/PR attachment as agent.
+#
+# Usage:
+#   agent-download-attachment <github-user-attachment-url> <output-file>
+
+set -euo pipefail
+
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=/dev/null
+source "${BIN_DIR}/agent-github-env.sh"
+
+url="${1:-}"
+out="${2:-}"
+
+if [[ -z "$url" || -z "$out" ]]; then
+  echo "Usage: agent-download-attachment <url> <output-file>" >&2
+  exit 1
+fi
+
+case "$url" in
+  https://github.com/user-attachments/*|https://githubusercontent.com/*) ;;
+  *)
+    echo "Refusing non-GitHub attachment URL: $url" >&2
+    exit 1
+    ;;
+esac
+
+mkdir -p "$(dirname "$out")"
+
+curl_bin="${AGENT_ATTACHMENT_CURL:-curl}"
+"$curl_bin" -L --fail --silent --show-error \
+  -H "Authorization: Bearer ${GH_TOKEN}" \
+  -H "Accept: application/octet-stream" \
+  -o "$out" \
+  "$url"
+
+if [[ ! -s "$out" ]]; then
+  echo "Downloaded attachment is empty: $out" >&2
+  exit 1
+fi
+
+case "$out" in
+  *.pdf|*.PDF)
+    if ! head -c 5 "$out" | grep -Fq "%PDF-"; then
+      echo "Downloaded file is not a PDF: $out" >&2
+      exit 1
+    fi
+    ;;
+esac

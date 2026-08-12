@@ -1,0 +1,49 @@
+name: Agent fix
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+concurrency:
+  group: agent-fix-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    if: |
+      github.event.comment.user.login != 'copilot-pull-request-reviewer[bot]' &&
+      github.event.comment.user.login != 'Copilot' &&
+      startsWith(github.event.comment.body, '/agent fix') &&
+      (
+        github.event_name == 'pull_request_review_comment' ||
+        github.event.issue.pull_request
+      )
+    runs-on: [self-hosted, Linux, agent]
+    # Maximum self-hosted runner job timeout: 5 days.
+    timeout-minutes: 7200
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run agent fix from PR
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          ./agent/scripts/agent-job-wrapper.sh \
+            --pr "${PR_NUMBER}" \
+            --issue "${ISSUE_NUMBER}" \
+            --workflow agent-fix \
+            --run-id "${{ github.run_id }}" \
+            -- ./agent/scripts/agent-fix-from-pr.sh "${PR_NUMBER}"

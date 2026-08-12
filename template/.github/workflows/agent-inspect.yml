@@ -1,0 +1,89 @@
+name: Agent inspect
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+concurrency:
+  group: agent-inspect-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    if: |
+      github.event.comment.user.login != 'copilot-pull-request-reviewer[bot]' &&
+      github.event.comment.user.login != 'Copilot' &&
+      (
+        (
+          contains(github.event.issue.labels.*.name, 'agent-inspect') &&
+          (
+            (
+              github.event_name == 'issues' &&
+              !contains(github.event.issue.labels.*.name, 'agent-cancelled')
+            ) ||
+            (
+              github.event_name == 'issue_comment' &&
+              !github.event.issue.pull_request &&
+              !startsWith(github.event.comment.body, '/agent cancel') &&
+              (
+                !contains(github.event.issue.labels.*.name, 'agent-cancelled') ||
+                startsWith(github.event.comment.body, '/agent retry')
+              )
+            )
+          )
+        ) ||
+        (
+          startsWith(github.event.comment.body, '/agent inspect') &&
+          (
+            github.event_name == 'pull_request_review_comment' ||
+            github.event.issue.pull_request ||
+            contains(github.event.issue.labels.*.name, 'agent-goal') ||
+            contains(github.event.issue.labels.*.name, 'agent-knowledge')
+          )
+        )
+      )
+    runs-on: [self-hosted, Linux, agent-inspect]
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Answer read-only PR inspection request
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_ID: ${{ github.event.comment.id || github.event.issue.id }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || '' }}
+          ISSUE_IS_PR: ${{ github.event.issue.pull_request && 'true' || 'false' }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          INSPECT_ISSUE_MODE: ${{ contains(github.event.issue.labels.*.name, 'agent-inspect') && !github.event.issue.pull_request && 'true' || 'false' }}
+        run: |
+          target_pr="${PR_NUMBER}"
+          target_issue="${ISSUE_NUMBER}"
+          wrapper_args=()
+
+          if [[ -z "$target_pr" && "${ISSUE_IS_PR}" == "true" ]]; then
+            target_pr="$target_issue"
+          fi
+
+          if [[ -n "$target_pr" ]]; then
+            wrapper_args+=(--pr "$target_pr")
+          elif [[ -n "$target_issue" ]]; then
+            wrapper_args+=(--issue "$target_issue")
+          fi
+
+          ./agent/scripts/agent-job-wrapper.sh \
+            "${wrapper_args[@]}" \
+            --workflow agent-inspect \
+            --run-id "${{ github.run_id }}" \
+            -- ./agent/scripts/agent-inspect.sh "$target_pr"

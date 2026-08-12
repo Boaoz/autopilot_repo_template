@@ -1,0 +1,3 @@
+# Central dependency spec for the repo-local agent environment.
+# Add non-standard Python packages here when committed code or knowledge samples require them.
+pytest

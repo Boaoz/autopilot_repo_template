@@ -1,0 +1,88 @@
+name: Agent knowledge
+
+on:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number to process
+        required: true
+        type: string
+      phase:
+        description: Force phase (auto = detect from issue state)
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - document
+          - fix
+  schedule:
+    - cron: "*/5 * * * *"
+
+concurrency:
+  group: agent-knowledge-${{ github.event_name == 'schedule' && 'poll' || github.event.issue.number || github.event.pull_request.number || github.event.inputs.issue_number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    if: |
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'issues' &&
+        contains(github.event.issue.labels.*.name, 'agent-knowledge')
+      ) ||
+      (
+        github.event_name == 'issue_comment' &&
+        contains(github.event.issue.labels.*.name, 'agent-knowledge') &&
+        (
+          startsWith(github.event.comment.body, '/agent retry') ||
+          (
+            (
+              contains(github.event.issue.labels.*.name, 'agent-documented') ||
+              contains(github.event.issue.labels.*.name, 'agent-pr-open')
+            ) &&
+            startsWith(github.event.comment.body, '/agent fix')
+          )
+        )
+      )
+    runs-on: [self-hosted, Linux, agent]
+    # Maximum self-hosted runner job timeout: 5 days.
+    timeout-minutes: 7200
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run orchestrator
+        if: github.event_name != 'schedule'
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.inputs.issue_number }}
+          FORCE_PHASE: ${{ github.event.inputs.phase || 'auto' }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+        run: |
+          ./agent/scripts/agent-job-wrapper.sh \
+            --issue "${ISSUE_NUMBER}" \
+            --workflow agent-knowledge \
+            --run-id "${{ github.run_id }}" \
+            -- ./agent/scripts/workflow-run-agent-knowledge-issue.sh
+
+      - name: Poll open agent-knowledge issues
+        if: github.event_name == 'schedule'
+        run: |
+          ./agent/scripts/agent-job-wrapper.sh \
+            --workflow agent-knowledge \
+            --poll \
+            --run-id "${{ github.run_id }}" \
+            -- ./agent/scripts/agent-knowledge-orchestrator.sh --poll

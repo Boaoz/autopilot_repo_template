@@ -1,0 +1,20 @@
+name: Agent inspect
+description: Ask read-only questions about the repository and its pull requests
+title: "[agent-inspect] "
+labels:
+  - agent-inspect
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What should the agent inspect or explain?
+      placeholder: e.g. Compare the current implementations in PRs #12 and #14 and explain their tradeoffs.
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        The agent answers immediately and does not modify code, branches, or pull requests.
+
+        Every later human comment is treated as the next question and receives the full conversation as context. Use `/agent retry` to repeat the last question after a failure or cancellation, and `/agent cancel` to stop automatic replies.

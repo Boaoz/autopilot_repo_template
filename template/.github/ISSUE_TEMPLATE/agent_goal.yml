@@ -1,0 +1,33 @@
+name: Agent goal
+description: Task for agent to plan and implement
+title: "[agent-goal] "
+labels:
+  - agent-goal
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should the agent accomplish?
+      placeholder: e.g. Add a function that returns the square of a number and update tests.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Optional constraints or references
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        **After the agent posts a plan:** comment `/agent revise <feedback>` to get a revised plan, or `/agent approve` to start implementation.
+
+        **After a draft PR is open:** comment `/agent fix <feedback>` on the issue or PR review to request changes.
+
+        If a run fails, comment `/agent retry`. To stop automation, comment `/agent cancel`.
+
+        Plans should declare `src/issue-<N>/` for code and `res/issue-<N>/` for generated outputs. See `AGENTS.md`.
+
+        Long implement phases post progress comments and periodic draft PR updates with logs and intermediate results.

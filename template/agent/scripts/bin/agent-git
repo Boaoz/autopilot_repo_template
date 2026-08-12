@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Run git with agent HTTPS credentials and commit identity.
+
+set -euo pipefail
+
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=/dev/null
+source "${BIN_DIR}/agent-github-env.sh"
+
+exec git \
+  -c "credential.helper=${BIN_DIR}/git-credential-agent" \
+  -c "user.name=$GH_USER" \
+  -c "user.email=${GH_USER}@users.noreply.github.com" \
+  "$@"

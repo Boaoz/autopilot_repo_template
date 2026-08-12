@@ -1,0 +1,36 @@
+name: Agent follow-up after merge
+
+on:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: agent-followup-after-merge-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  followup:
+    if: |
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: [self-hosted, Linux, agent]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Consider follow-up issue
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          ./agent/scripts/agent-job-wrapper.sh \
+            --pr "${PR_NUMBER}" \
+            --workflow agent-followup-after-merge \
+            --run-id "${{ github.run_id }}" \
+            -- ./agent/scripts/agent-followup-after-merge.sh "${PR_NUMBER}"

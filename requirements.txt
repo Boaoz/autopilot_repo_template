@@ -1,0 +1,7 @@
+git
+gh
+bash
+python3
+curl
+screen
+opencode

@@ -1,0 +1,37 @@
+name: Agent knowledge
+description: Capture reusable knowledge for future agent work (markdown, sample code, or papers)
+title: "[agent-knowledge] "
+labels:
+  - agent-knowledge
+body:
+  - type: textarea
+    id: knowledge
+    attributes:
+      label: Knowledge to capture
+      description: What should the agent explore and document for future runs?
+      placeholder: e.g. Document ClickHouse table X, or summarize uploaded paper Y (attach the PDF in the issue).
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Optional credentials location, links, constraints, or example use cases
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        agent starts work immediately when this issue is opened — **no plan or `/agent approve` step**.
+
+        Deliverables are committed under `knowledge/issue-<N>/`. The agent chooses
+        appropriate files (markdown, samples, papers, etc.). Attach a paper to the
+        issue when relevant.
+
+        The agent comments on this issue when the draft PR is ready.
+
+        **After a draft PR is open:** comment `/agent fix <feedback>` on the issue or PR to request updates.
+
+        If a run fails, comment `/agent retry`. To stop automation, comment `/agent cancel`.
+
+        See `AGENTS.md` for the full Agent knowledge workflow.

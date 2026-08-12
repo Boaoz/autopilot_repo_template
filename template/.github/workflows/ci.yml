@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install test runner
+        run: python3 -m pip install pytest
+
+      - name: Verify
+        run: ./agent/scripts/verify.sh
+
+      - name: Check framework changes
+        id: framework
+        shell: bash
+        run: |
+          base_ref="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [[ -z "$base_ref" || "$base_ref" == "0000000000000000000000000000000000000000" ]]; then
+            base_ref="HEAD~1"
+          fi
+          changed="$(
+            git diff --name-only "$base_ref"...HEAD -- \
+              '.github/**' \
+              'AGENTS.md' \
+              'agent/scripts/**' \
+              'agent/setup/**' \
+              'agent/tests/**' || true
+          )"
+          if [[ -n "$changed" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            printf 'Framework files changed:\n%s\n' "$changed"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify framework
+        if: steps.framework.outputs.changed == 'true'
+        run: ./agent/scripts/verify.sh --workflow

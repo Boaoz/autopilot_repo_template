@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Run GitHub CLI as the agent account.
+
+set -euo pipefail
+
+# shellcheck source=/dev/null
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/agent-github-env.sh"
+
+exec gh "$@"

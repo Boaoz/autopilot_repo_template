@@ -1,0 +1,40 @@
+name: Agent goal recovery
+
+on:
+  workflow_run:
+    workflows: [Agent goal]
+    types: [completed]
+
+concurrency:
+  group: agent-goal-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: |
+      github.event.workflow_run.event != 'schedule' &&
+      (
+        github.event.workflow_run.conclusion == 'cancelled' ||
+        github.event.workflow_run.conclusion == 'timed_out'
+      )
+    runs-on: [self-hosted, Linux, agent]
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: read
+      issues: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Dispatch incomplete agent-goal issues
+        env:
+          RECOVERY_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          ./agent/scripts/agent-job-wrapper.sh \
+            --workflow agent-goal-recovery \
+            --poll \
+            --run-id "${{ github.run_id }}" \
+            -- ./agent/scripts/agent-goal-watchdog.sh --recover-run "${RECOVERY_RUN_ID}"

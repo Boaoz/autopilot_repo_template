@@ -1,0 +1,66 @@
+name: Agent cancel
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: agent-cancel-${{ startsWith(github.event.comment.body, '/agent cancel') && github.event.issue.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  cancel:
+    if: |
+      (
+        contains(github.event.issue.labels.*.name, 'agent-goal') ||
+        contains(github.event.issue.labels.*.name, 'agent-knowledge')
+      ) &&
+      startsWith(github.event.comment.body, '/agent cancel')
+    runs-on: [self-hosted, Linux, agent]
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cancel active agent run
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+        run: |
+          ./agent/scripts/agent-cancel-issue.sh
+
+  cancel-inspect:
+    if: |
+      contains(github.event.issue.labels.*.name, 'agent-inspect') &&
+      startsWith(github.event.comment.body, '/agent cancel')
+    runs-on: [self-hosted, Linux, agent]
+    timeout-minutes: 5
+    concurrency:
+      group: agent-inspect-${{ github.event.issue.number }}
+      cancel-in-progress: true
+    permissions:
+      actions: write
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Stop conversational inspection
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+        run: |
+          ./agent/scripts/agent-cancel-issue.sh
