@@ -1,6 +1,6 @@
 # autopilot repo template
 
-This private GitHub repository (`Boaoz/autopilot_repo_template`) is a reusable
+This GitHub repository (`Boaoz/autopilot_repo_template`) is a reusable
 installer for the `agent` GitHub issue workflow. Clone it wherever you want to
 prepare a target repository for background agent work.
 
